@@ -23,7 +23,8 @@ HISTORY_FILE = "posted_history.json"
 
 # API初期化
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-flash-latest')
+# モデルを 2.5 版に変更してクォータ制限を回避
+model = genai.GenerativeModel('gemini-2.5-flash')
 
 # ニュースソース (4つに拡充)
 SOURCES = [
@@ -157,7 +158,6 @@ def post_to_threads(text):
 def main():
     print(f"--- {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 実行開始 ---", flush=True)
     
-    # トークンの簡易チェック
     if not THREADS_ACCESS_TOKEN:
         print("【警告】THREADS_ACCESS_TOKEN が空です！GitHubのSecretsを確認してください。")
     
