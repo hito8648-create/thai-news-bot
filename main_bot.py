@@ -23,14 +23,14 @@ HISTORY_FILE = "posted_history.json"
 
 # API初期化
 genai.configure(api_key=GEMINI_API_KEY)
-# 明日からの運用を見据えた「最新版」モデル
-model = genai.GenerativeModel('gemini-flash-latest')
+# 無料枠の制限が緩い信頼の 1.5 版を採用
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 # ニュースソース (4つ)
 SOURCES = [
     {"name": "Bangkok Post", "url": "https://www.bangkokpost.com/rss/data/topstories.xml"},
     {"name": "The Pattaya News", "url": "https://thepattayanews.com/feed/"},
-    {"name": "Pattaya Mail", "url": "https://www.pattayamail.com/feed"},
+    {"name": "Pattaya Mail", "url": "https://www.pattayamall.com/feed"},
     {"name": "Khaosod English", "url": "https://www.khaosodenglish.com/feed/"}
 ]
 
@@ -115,7 +115,6 @@ def select_and_summarize(articles):
     return post_content, selected_article
 
 def get_threads_user_id():
-    """ユーザーIDを取得する。失敗した場合はエラーを表示"""
     if not THREADS_ACCESS_TOKEN:
         print("エラー: THREADS_ACCESS_TOKEN が設定されていません。")
         return None
@@ -135,7 +134,6 @@ def post_to_threads(text):
             print("投稿を中止します (ユーザーID不明)")
             return False
     
-    # 1. コンテナ作成
     res_c = requests.post(f"https://graph.threads.net/v1.0/{THREADS_USER_ID}/threads", data={
         "media_type": "TEXT", "text": text, "access_token": THREADS_ACCESS_TOKEN
     })
@@ -143,7 +141,6 @@ def post_to_threads(text):
         print(f"コンテナ作成失敗: {res_c.text}")
         return False
     
-    # 2. 公開
     creation_id = res_c.json().get('id')
     res_p = requests.post(f"https://graph.threads.net/v1.0/{THREADS_USER_ID}/threads_publish", data={
         "creation_id": creation_id, "access_token": THREADS_ACCESS_TOKEN
@@ -157,9 +154,8 @@ def post_to_threads(text):
 
 def main():
     print(f"--- {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 定期実行開始 ---", flush=True)
-    
     if not THREADS_ACCESS_TOKEN:
-        print("【警告】THREADS_ACCESS_TOKEN が空です！GitHubのSecretsを確認してください。")
+        print("【警告】THREADS_ACCESS_TOKEN が空です！")
     
     articles = fetch_all_headlines()
     if not articles:
@@ -176,7 +172,7 @@ def main():
         print("Threadsへの投稿に成功しました！ 🎉", flush=True)
         save_history(selected_article['link'])
     else:
-        print("【最終結果】Threadsへの投稿に失敗しました。詳細なエラーは上記を確認してください。", flush=True)
+        print("【最終結果】Threadsへの投稿に失敗しました。", flush=True)
 
 if __name__ == "__main__":
     main()
