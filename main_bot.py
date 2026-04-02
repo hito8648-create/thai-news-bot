@@ -23,8 +23,8 @@ HISTORY_FILE = "posted_history.json"
 
 # API初期化
 genai.configure(api_key=GEMINI_API_KEY)
-# 無料枠の制限が緩い信頼の 1.5 版を採用
-model = genai.GenerativeModel('gemini-1.5-flash')
+# 今の環境で最も安定しており、クォータ制限の異なる 2.0 版を指定
+model = genai.GenerativeModel('gemini-2.0-flash')
 
 # ニュースソース (4つ)
 SOURCES = [
