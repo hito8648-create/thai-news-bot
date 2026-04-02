@@ -23,8 +23,8 @@ HISTORY_FILE = "posted_history.json"
 
 # API初期化
 genai.configure(api_key=GEMINI_API_KEY)
-# 今の環境で最も安定しており、クォータ制限の異なる 2.0 版を指定
-model = genai.GenerativeModel('gemini-2.0-flash')
+# 最多の無料枠を持つ「ライト版」を指定
+model = genai.GenerativeModel('gemini-flash-lite-latest')
 
 # ニュースソース (4つ)
 SOURCES = [
@@ -53,10 +53,9 @@ def fetch_all_headlines():
         print(f"取得中: {source['name']}...", flush=True)
         feed = feedparser.parse(source['url'])
         count = 0
-        if feed.bozo:
-             print(f"警告: {source['name']} の取得に失敗した可能性があります。", flush=True)
+        # 各サイトからの取得を 3件 → 2件に絞ってトークンを節約
         for entry in feed.entries:
-            if count >= 3: break
+            if count >= 2: break
             if entry.link in history: continue
             all_articles.append({
                 "source": source["name"],
@@ -74,27 +73,25 @@ def select_and_summarize(articles):
         list_str += f"[{i}] {a['source']}: {a['title']}\n"
 
     prompt = f"""
-あなたはタイ情勢に精通した日本語プロ編集者です。
-12件程度のニュース見出しから、日本の読者やタイ在住者が最も関心を持つ「最高の一記事」を1件だけ厳選し、投稿文を作成してください。
+あなたはタイ情認に精通した日本語プロ編集者です。
+ニュース見出しから、日本人読者が最も関心を持つ「最高の一記事」を1件だけ厳選し、投稿文を作成してください。
 
 【ニュースリスト】
 {list_str}
 
 【ライティングの絶対ルール】
-・「AIらしさ」を徹底的に排除してください。
-・「〜という重要なニュースです」「〜に注目しましょう」「〜をご存知ですか？」といったAI特有の「問いかけ」や「お決まりの結び」は一切禁止です。
-・まるで現場をよく知る専門記者が、淡々と、かつ鋭い洞察を込めて書いているかのようなトーンにしてください。
-・丁寧でありながら、読者におもねらないプロフェッショナルな文体。
+・「AIらしさ」を徹底的に排除。
+・「〜という重要なニュースです」「〜に注目しましょう」といった結びは禁止。
+・専門記者が鋭い洞察を込めて書いているかのようなトーン。
 
 [投稿文構成]
 1. (ヘッドラインタイトル - 🚨や🇹🇭などの絵文字から開始)
 2. (空白行)
-3. (事実の要約：3行程度。余計な形容詞を削ぎ落とし、核心のみを伝える)
+3. (事実の要約：核心のみを伝える)
 4. (空白行)
-5. (本音の洞察/インパクト：1〜2行程度。現地在住の日本人が「あ、これは困るな/助かるな」と感じる実利的な視点。感情的なフレーズは避ける)
+5. (本音の洞察/インパクト：実利的な視点)
 
-回答の最後に、必ず「INDEX:[番号]」とだけ書き添えてください。記事URLやハッシュタグは含めないでください。
-例：INDEX:3
+回答の最後に、必ず「INDEX:[番号]」とだけ書き添えてください。
 """
     response = model.generate_content(prompt)
     output_text = response.text.strip()
@@ -115,24 +112,14 @@ def select_and_summarize(articles):
     return post_content, selected_article
 
 def get_threads_user_id():
-    if not THREADS_ACCESS_TOKEN:
-        print("エラー: THREADS_ACCESS_TOKEN が設定されていません。")
-        return None
     url = f"https://graph.threads.net/v1.0/me?fields=id&access_token={THREADS_ACCESS_TOKEN}"
     res = requests.get(url)
-    if res.status_code == 200:
-        return res.json().get('id')
-    else:
-        print(f"ユーザーID取得失敗: {res.text}")
-        return None
+    return res.json().get('id') if res.status_code == 200 else None
 
 def post_to_threads(text):
     global THREADS_USER_ID
-    if not THREADS_USER_ID or THREADS_USER_ID == "":
+    if not THREADS_USER_ID:
         THREADS_USER_ID = get_threads_user_id()
-        if not THREADS_USER_ID:
-            print("投稿を中止します (ユーザーID不明)")
-            return False
     
     res_c = requests.post(f"https://graph.threads.net/v1.0/{THREADS_USER_ID}/threads", data={
         "media_type": "TEXT", "text": text, "access_token": THREADS_ACCESS_TOKEN
@@ -145,21 +132,13 @@ def post_to_threads(text):
     res_p = requests.post(f"https://graph.threads.net/v1.0/{THREADS_USER_ID}/threads_publish", data={
         "creation_id": creation_id, "access_token": THREADS_ACCESS_TOKEN
     })
-    
-    if res_p.status_code == 200:
-        return True
-    else:
-        print(f"公開フェーズ失敗: {res_p.text}")
-        return False
+    return res_p.status_code == 200
 
 def main():
     print(f"--- {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 定期実行開始 ---", flush=True)
-    if not THREADS_ACCESS_TOKEN:
-        print("【警告】THREADS_ACCESS_TOKEN が空です！")
-    
     articles = fetch_all_headlines()
     if not articles:
-        print("新規記事がありませんでした。")
+        print("新規記事なし。")
         return
         
     print(f"{len(articles)}件からAI記者が厳選中...", flush=True)
@@ -172,7 +151,7 @@ def main():
         print("Threadsへの投稿に成功しました！ 🎉", flush=True)
         save_history(selected_article['link'])
     else:
-        print("【最終結果】Threadsへの投稿に失敗しました。", flush=True)
+        print("【失敗】投稿できませんでした。", flush=True)
 
 if __name__ == "__main__":
     main()
