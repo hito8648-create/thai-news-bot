@@ -2,6 +2,7 @@
 import os
 import sys
 import json
+import time
 import google.generativeai as genai
 import requests
 import feedparser
@@ -107,6 +108,7 @@ def post_to_threads(text):
         print("Error: Missing Threads configuration (Token/ID)")
         return False
     
+    # 1. コンテナ作成
     url_c = f"https://graph.threads.net/v1.0/{THREADS_USER_ID}/threads"
     res_c = requests.post(url_c, data={
         "media_type": "TEXT", "text": text, "access_token": THREADS_ACCESS_TOKEN
@@ -117,6 +119,12 @@ def post_to_threads(text):
         return False
     
     creation_id = res_c.json().get('id')
+    
+    # 【解決策】リンクのプレビュー画像を読み込む時間をMetaに与えるため15秒待つ
+    print(f"Container ID: {creation_id}. Metaのリンク処理を待つため15秒待機します...", flush=True)
+    time.sleep(15)
+    
+    # 2. 公開
     url_p = f"https://graph.threads.net/v1.0/{THREADS_USER_ID}/threads_publish"
     res_p = requests.post(url_p, data={
         "creation_id": creation_id, "access_token": THREADS_ACCESS_TOKEN
@@ -140,7 +148,7 @@ def main():
         print("新規のニュース記事がありませんでした。")
         return
 
-    print("Generating post content from news...")
+    print("Generating post content from news...", flush=True)
     post_content, selected_article = generate_lesson_post(articles)
     
     if not post_content:
