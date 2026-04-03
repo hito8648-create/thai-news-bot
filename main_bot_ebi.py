@@ -22,7 +22,8 @@ VERBLING_URL = "https://www.verbling.com/teachers/ebi"
 
 # API初期化
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
+# モデル名を 'gemini-flash-latest' に修正しました
+model = genai.GenerativeModel('gemini-flash-latest')
 
 def generate_lesson_post():
     """えび先生として日本語の学び直しに役立つポイントを生成"""
@@ -107,4 +108,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
