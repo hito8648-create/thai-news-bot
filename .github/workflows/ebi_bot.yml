@@ -33,9 +33,9 @@ jobs:
         THREADS_USER_ID_EBI: ${{ secrets.THREADS_USER_ID_EBI }}
         GEMINI_API_KEY_EBI: ${{ secrets.GEMINI_API_KEY_EBI }}
       run: python main_bot_ebi.py
-      
+
     - name: Commit change in word history
       uses: stefanzweifel/git-auto-commit-action@v4
       with:
         commit_message: "Auto-update used words history (Ebi Bot) [skip ci]"
-        file_pattern: 'used_words_ebi.json posted_history_ebi.json'
+        file_pattern: 'used_words_ebi.json'
